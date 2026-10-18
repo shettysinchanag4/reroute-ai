@@ -1,0 +1,67 @@
+RerouteAI — Demo Presentation Script
+Format: Plain Text Narration
+Estimated Duration: 3 minutes 30 seconds
+
+[0:00 — HOOK]
+Picture this: you are waiting at Bengaluru airport for your flight to Mangaluru, and your screen suddenly flashes a four-hour delay. Your prepaid airport cab at Mangaluru is going to leave without you, your hotel check-in at Udupi will be missed, and your connecting train the next morning is in jeopardy. You are stuck juggling four different booking apps while feeling completely stressed.
+
+(pause)
+
+[0:20 — WHAT IT IS]
+Welcome to RerouteAI. RerouteAI is an autonomous, multi-agent travel disruption recovery concierge built using Google ADK 2.11 and Gemini 2.5 Flash. It belongs to the Concierge Agents track. Instead of only notifying you about a broken flight, RerouteAI analyzes your entire multi-modal journey, cascades the impact downstream across all dependent reservations, synthesizes four distinct recovery plans, and securely rebooks your travel with your explicit approval.
+
+(pause)
+
+[0:40 — SHOW THE BANNER]
+(show assets/cover_page_banner.png)
+
+As you can see on our project banner, RerouteAI brings three core pillars together: automated cascade impact analysis, four personalized recovery plans covering fastest, cheapest, comfort, and AI-recommended trade-offs, and an essential human-in-the-loop approval gate.
+
+(pause)
+
+[1:00 — ARCHITECTURE]
+(show assets/architecture_diagram.png)
+
+Let us take a look under the hood at our ADK 2.11 Workflow Graph.
+When a disruption event arrives, it first enters our load_input node.
+From there, it routes to our security_checkpoint node. This node scrubs sensitive PII like Aadhaar, PAN cards, and phone numbers, and evaluates the text against prompt injection heuristics. If an attack is detected, it immediately branches to security_blocked.
+When the payload is clean, it triggers the RerouteOrchestrator. The orchestrator delegates to three specialist LlmAgents using ADK's AgentTool:
+First, DisruptionDetectorAgent queries our MCP Server via stdio to fetch root booking details.
+Second, ImpactAnalyzerAgent retrieves the full itinerary and computes which downstream legs are broken.
+Third, RecoveryPlannerAgent searches alternative flights, trains, and cabs through the MCP inventory to formulate four ranked plans.
+Finally, the workflow transitions to human_approval, which triggers an ADK RequestInput pause so the traveler can review and approve before process_approval confirms the rebooking.
+
+(pause)
+
+[2:00 — LIVE DEMO]
+(switch to playground at localhost:18081)
+
+Now, let us watch RerouteAI live in the ADK web playground.
+Here is our test scenario: IndiGo flight BK001 from Bengaluru to Mangaluru is delayed by 240 minutes for traveler Aditi Sharma, who has a 5,000 rupee budget and must avoid night travel.
+I will send the disruption payload into the chat.
+
+(pause - demonstrate execution)
+
+Notice what happens:
+First, the security checkpoint passes with clean audit tags.
+Next, the impact analyzer identifies that Aditi will miss her 08:40 AM Ola airport cab to Udupi, which cascades into delaying her check-in at the Ideal Beach Resort.
+Then, the recovery planner presents four distinct options:
+Option 1, FASTEST: rebooking on an Air India flight arriving at 11:55 AM with a 900 rupee difference.
+Option 2, CHEAPEST: a zero-cost evening IndiGo flight.
+Option 3, MOST COMFORTABLE: an air-conditioned Konkan Kanya train ride.
+And Option 4, AI_RECOMMENDED: the Air India flight, which preserves her resort check-in while comfortably respecting her 5,000 rupee budget.
+
+Notice the Human-in-the-Loop pause: RerouteAI will not spend money without consent. I type 'AI_RECOMMENDED', and the agent confirms the simulated rebooking immediately.
+
+(pause)
+
+[3:00 — SECURITY & MCP]
+What makes RerouteAI production-grade is its defense-in-depth security and standard protocols.
+Our security checkpoint features five regex engines for Indian and international identity documents, a zero-tolerance prompt injection blocker, and an audit trail attached to every session.
+Our Model Context Protocol server connects via stdio to provide five dedicated tools for live inventory lookup, dependency graph evaluation, and rebooking confirmations.
+
+(pause)
+
+[3:30 — IMPACT / CLOSE]
+Travel disruptions cost travelers billions in lost time and missed non-refundable connections every year. With Google ADK and Gemini 2.5 Flash, RerouteAI transforms travel chaos into calm, coordinated, and transparent recovery in seconds.
+Thank you!

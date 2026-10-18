@@ -1,5 +1,7 @@
 # ✈️ RerouteAI — Travel Disruption Recovery Concierge
 
+![RerouteAI Cover Banner](assets/cover_page_banner.png)
+
 > An autonomous multi-agent concierge built with Google ADK 2.11 and Gemini 2.5 Flash that detects travel disruptions, calculates cascading itinerary impact across dependent bookings, produces 4 ranked recovery plans, and executes rebooking with human approval.
 
 ---
@@ -15,6 +17,8 @@
 ---
 
 ## 🏗️ Architecture
+
+![RerouteAI Architecture Diagram](assets/architecture_diagram.png)
 
 ```mermaid
 flowchart TD
@@ -185,6 +189,21 @@ Open **[http://127.0.0.1:18081](http://127.0.0.1:18081)** in your browser to int
      ```powershell
      uv run adk web app --host 127.0.0.1 --port 18081
      ```
+
+---
+
+## 🎨 Assets
+
+The project includes visual architecture and branding assets in [`assets/`](file:///c:/Users/shett/OneDrive/Documents/RerouteAI/reroute-ai/assets/):
+- **Cover Banner**: [`assets/cover_page_banner.png`](file:///c:/Users/shett/OneDrive/Documents/RerouteAI/reroute-ai/assets/cover_page_banner.png)
+- **Workflow Architecture Diagram**: [`assets/architecture_diagram.png`](file:///c:/Users/shett/OneDrive/Documents/RerouteAI/reroute-ai/assets/architecture_diagram.png)
+
+---
+
+## 🎙️ Demo Script
+
+A spoken presentation script for live video demonstrations and reviews is available at:
+- [`DEMO_SCRIPT.txt`](file:///c:/Users/shett/OneDrive/Documents/RerouteAI/reroute-ai/DEMO_SCRIPT.txt) (approx. 3-4 minutes timed walkthrough).
 
 ---
 
