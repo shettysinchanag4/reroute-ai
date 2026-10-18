@@ -1,6 +1,9 @@
 """
 RerouteAI — Travel Disruption Recovery Concierge Agent
 Built with Google ADK 2.11 Workflow Graph API and Gemini 2.5 Flash
+
+Tools are exposed as direct Python FunctionTools (wrapping the mcp_server handlers)
+to avoid the MCP stdio subprocess session-timeout issue on Windows.
 """
 
 from __future__ import annotations
@@ -9,33 +12,96 @@ import datetime
 import json
 import logging
 import re
-import sys
 from typing import Any
 
 from google.adk.agents import LlmAgent
 from google.adk.agents.context import Context
 from google.adk.events import RequestInput
-from google.adk.tools import agent_tool
-from google.adk.tools.mcp_tool import McpToolset, StdioConnectionParams
+from google.adk.tools import FunctionTool, agent_tool
 from google.adk.workflow import Edge, FunctionNode, START, Workflow
-from mcp.client.stdio import StdioServerParameters
 
 from .config import config
+from .mcp_server import (
+    handle_confirm_rebooking,
+    handle_get_audit_log,
+    handle_get_booking_details,
+    handle_get_itinerary,
+    handle_search_alternatives,
+)
 
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MCP Toolset — connects to mcp_server.py via stdio
+# DIRECT PYTHON TOOLS — wraps mcp_server handlers in-process (no subprocess)
 # ─────────────────────────────────────────────────────────────────────────────
 
-MCP_TOOLSET = McpToolset(
-    connection_params=StdioConnectionParams(
-        server_params=StdioServerParameters(
-            command=sys.executable,
-            args=["-m", "app.mcp_server"],
-        )
-    )
-)
+
+def get_booking_details(booking_id: str) -> str:
+    """Retrieve full details of a specific booking by its ID.
+
+    Returns booking type, route, times, price, status, and dependencies.
+
+    Args:
+        booking_id: The booking ID to look up (e.g. BK001, BK002, BK003, BK004).
+    """
+    return handle_get_booking_details({"booking_id": booking_id})
+
+
+def get_itinerary() -> str:
+    """Retrieve the complete traveller itinerary as an ordered list of bookings.
+
+    Includes all dependency links (BK001 → BK002 → BK003 → BK004).
+    """
+    return handle_get_itinerary({})
+
+
+def search_alternatives(
+    booking_id: str,
+    disruption_type: str,
+    delay_minutes: int = 0,
+) -> str:
+    """Search available alternative transport or accommodation options for a disrupted booking.
+
+    Args:
+        booking_id: ID of the disrupted booking (e.g. BK001).
+        disruption_type: One of CANCELLED, DELAYED, OVERBOOKED.
+        delay_minutes: Minutes delayed (0 for CANCELLED or OVERBOOKED).
+    """
+    return handle_search_alternatives({
+        "booking_id": booking_id,
+        "disruption_type": disruption_type,
+        "delay_minutes": delay_minutes,
+    })
+
+
+def confirm_rebooking(
+    approved_plan_id: str,
+    bookings_to_replace: list,
+) -> str:
+    """Record the traveller's confirmed rebooking decision after human approval.
+
+    Args:
+        approved_plan_id: Plan ID approved by the traveller (e.g. FASTEST, AI_RECOMMENDED).
+        bookings_to_replace: List of dicts with old_booking_id and new_option_id.
+    """
+    return handle_confirm_rebooking({
+        "approved_plan_id": approved_plan_id,
+        "bookings_to_replace": bookings_to_replace,
+    })
+
+
+def get_audit_log() -> str:
+    """Retrieve the full audit trail of all agent decisions, tool calls, and rebooking actions."""
+    return handle_get_audit_log({})
+
+
+TOOLS = [
+    FunctionTool(func=get_booking_details),
+    FunctionTool(func=get_itinerary),
+    FunctionTool(func=search_alternatives),
+    FunctionTool(func=confirm_rebooking),
+    FunctionTool(func=get_audit_log),
+]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SPECIALIST SUB-AGENTS
@@ -44,7 +110,7 @@ MCP_TOOLSET = McpToolset(
 disruption_detector = LlmAgent(
     name="DisruptionDetectorAgent",
     model=config.model,
-    tools=[MCP_TOOLSET],
+    tools=TOOLS,
     instruction="""You are the Disruption Detector for RerouteAI.
 Your job:
 1. Parse the disruption event details (flight, train, bus, hotel, cab).
@@ -66,7 +132,7 @@ Rules:
 impact_analyzer = LlmAgent(
     name="ImpactAnalyzerAgent",
     model=config.model,
-    tools=[MCP_TOOLSET],
+    tools=TOOLS,
     instruction="""You are the Impact Analyzer for RerouteAI.
 Your job:
 1. Use tool `get_itinerary` to retrieve all bookings in dependency order (e.g. BK001 -> BK002 -> BK003 -> BK004).
@@ -98,7 +164,7 @@ Rules:
 recovery_planner = LlmAgent(
     name="RecoveryPlannerAgent",
     model=config.model,
-    tools=[MCP_TOOLSET],
+    tools=TOOLS,
     instruction="""You are the Recovery Planner for RerouteAI.
 Your job:
 1. Use tool `search_alternatives` with booking_id="BK001" and disruption_type="DELAYED" to find available alternatives.
@@ -139,7 +205,6 @@ orchestrator = LlmAgent(
         agent_tool.AgentTool(agent=disruption_detector),
         agent_tool.AgentTool(agent=impact_analyzer),
         agent_tool.AgentTool(agent=recovery_planner),
-        MCP_TOOLSET,
     ],
     instruction="""You are the RerouteAI Orchestrator — an elite AI travel disruption concierge for Karnataka and Indian travel networks.
 You coordinate three specialist agents in sequence:
@@ -472,5 +537,6 @@ root_agent = Workflow(
     ),
     edges=edges,
 )
+root_agent._orchestrator = orchestrator
 
 app = root_agent
